@@ -91,21 +91,40 @@ async def health_check():
     return {"status": "ok", "message": "Waterline Protocol API corriendo correctamente"}
 
 @app.get("/package/{id}", tags=["Packages"])
-async def get_package(id: str):
+async def get_package(id: int):
     """
-    Consulta un paquete del Smart Contract en Avalanche (Datos falsos por ahora)
+    Consulta el estado y ubicación del paquete en Oracle DB.
     """
-    # TODO: Interactuar con el Smart Contract usando web3.py
-    # w3 = Web3(Web3.HTTPProvider(AVALANCHE_RPC_URL))
-    
-    mock_data = {
-        "package_id": id,
-        "current_location": "Centro de Distribución Central",
-        "status": "En Tránsito",
-        "last_updated": "2026-05-16T14:30:00Z"
-    }
-    
-    return {"status": "success", "data": mock_data}
+    try:
+        connection = get_oracle_connection()
+        cursor = connection.cursor()
+        
+        # Consultar el último registro del paquete
+        query = """
+            SELECT location, tx_hash 
+            FROM package_logs 
+            WHERE package_id = :1 
+            ORDER BY id DESC 
+            FETCH FIRST 1 ROWS ONLY
+        """
+        cursor.execute(query, [id])
+        row = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+
+        if row:
+            data = {
+                "package_id": id,
+                "current_location": row[0],
+                "last_tx_hash": row[1]
+            }
+            return {"status": "success", "data": data}
+        else:
+            raise HTTPException(status_code=404, detail="Paquete no encontrado en la base de datos.")
+            
+    except oracledb.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {str(e)}")
 
 @app.post("/package/update", tags=["Packages"])
 async def update_package_location(update: LocationUpdate):

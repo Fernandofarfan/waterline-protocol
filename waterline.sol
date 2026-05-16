@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 contract WaterlineProtocol {
     string public name = "Waterline RWA Logistics";
+    address public owner;
     
     struct Package {
         uint256 id;
@@ -14,7 +15,16 @@ contract WaterlineProtocol {
 
     event LocationUpdated(uint256 indexed packageId, string newLocation);
 
-    function updateLocation(uint256 _id, string memory _newLocation) public {
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not allowed");
+        _;
+    }
+
+    function updateLocation(uint256 _id, string memory _newLocation) public onlyOwner {
         packages[_id].location = _newLocation;
         emit LocationUpdated(_id, _newLocation);
     }

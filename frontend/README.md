@@ -1,16 +1,53 @@
-# React + Vite
+# 🌊 Waterline Protocol - Frontend Dashboard
+### React + Vite Modern Logistical User Interface
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains the user dashboard application for the **Waterline Protocol**, built on top of **React** and bundled using **Vite**. The frontend enables real-time visual tracking of real-world assets (RWA), triggers smart contract updates via the backend gateway, and queries the AI Routing Agent for logistical path optimization.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🎨 Features
+* **Real-time Map/Status Viewer**: Input a Package ID to trace its location and locate the exact Avalanche transaction hash.
+* **Smart-Contract Location Trigger**: Push updates to the Avalanche Fuji ledger from an interactive UI form.
+* **AI Path Optimizer**: Connects with the Python Dijkstra backend to visualize optimal routes between CABA, Mar del Plata, Rosario, Córdoba, and Salta.
+* **Premium UX/UI**: Clean layout, modern gradients, interactive indicators, and smooth state updates.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Local Configuration & Setup
 
-## Expanding the ESLint configuration
+### 1. Prerequisites
+Ensure you have the following installed on your machine:
+* **Node.js** (v18.0.0 or higher is highly recommended)
+* **npm** (Node Package Manager)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 2. Environment Setup
+Create a new `.env` configuration file in this directory by copying the example template:
+```bash
+cp .env.example .env
+```
+Ensure your environment variable points to the active FastAPI backend service. The default local setup is:
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+### 3. Dependency Installation
+Install all required Node modules and dependencies by running:
+```bash
+npm install
+```
+
+### 4. Running the Development Server
+Launch the local development server with Hot Module Replacement (HMR):
+```bash
+npm run dev
+```
+Once initialized, the console will output the active local URL, typically **`http://localhost:5173`**. Open it in your browser to interact with the system.
+
+---
+
+## 📦 Build for Production
+To generate an optimized production bundle, execute:
+```bash
+npm run build
+```
+This builds static assets ready to be served from any static hosting provider (OCI Object Storage, Vercel, Netlify, etc.) inside the `dist/` directory.
