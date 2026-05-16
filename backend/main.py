@@ -1,4 +1,5 @@
 ﻿from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from web3 import Web3
 from web3.exceptions import Web3Exception
@@ -6,6 +7,9 @@ import uvicorn
 import os
 import oracledb
 import networkx as nx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------------------------------------------------
 # CONEXIÓN ORACLE DB (THIN MODE)
@@ -58,6 +62,14 @@ app = FastAPI(
     title="Waterline Protocol API",
     description="Backend API para logística Web3 (Waterline Protocol)",
     version="0.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------

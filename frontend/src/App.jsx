@@ -60,7 +60,7 @@ export default function App() {
     setRouteData(null);
 
     try {
-      const res = await fetch(`http://localhost:8000/route/optimize?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/route/optimize?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`);
       
       if (!res.ok) throw new Error('No se pudo encontrar una ruta óptima entre estos puntos.');
       
@@ -82,7 +82,7 @@ export default function App() {
     setTxResult(null);
 
     try {
-      const res = await fetch('http://localhost:8000/package/update', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/package/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
