@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 from web3 import Web3
 from web3.exceptions import Web3Exception
@@ -8,8 +9,16 @@ import os
 import oracledb
 import networkx as nx
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 load_dotenv()
+
+# ---------------------------------------------------------
+# VARIABLES DE ENTORNO
+# ---------------------------------------------------------
+PAYLOAD_ENCRYPTION_KEY = os.getenv("PAYLOAD_ENCRYPTION_KEY", "tu_clave_secreta_hex_de_32_bytes_aqui")
+FRONTEND_CORS_ORIGIN = os.getenv("FRONTEND_CORS_ORIGIN", "https://tu-dominio-frontend.com")
+API_SECRET_KEY = os.getenv("API_SECRET_KEY", "clave_secreta_para_proteger_endpoints")
 
 # ---------------------------------------------------------
 # CONEXIÓN ORACLE DB (THIN MODE)
@@ -17,21 +26,38 @@ load_dotenv()
 # In-memory mock DB in case Oracle DB connection is not available
 MOCK_PACKAGE_LOGS = []
 
-# ---------------------------------------------------------
-# CONEXIÓN ORACLE DB (THIN MODE)
-# ---------------------------------------------------------
-def get_oracle_connection():
+oracle_pool = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global oracle_pool
     try:
-        # El modo "thin" es el predeterminado, no requiere instalar Oracle Client
-        connection = oracledb.connect(
+        oracle_pool = oracledb.create_pool(
             user=os.environ.get("ORACLE_USER", "admin"),
             password=os.environ.get("ORACLE_PASSWORD", "mock"),
-            dsn=os.environ.get("ORACLE_DSN", "localhost/XEPDB1")
+            dsn=os.environ.get("ORACLE_DSN", "localhost/XEPDB1"),
+            min=2,
+            max=5,
+            increment=1
         )
-        return connection
+        print("Oracle DB Connection Pool created.")
     except oracledb.Error as e:
-        print(f"Error conectando a Oracle DB: {e}. Usando fallback en memoria.")
-        return None
+        print(f"Error creating Oracle DB pool: {e}. Usando fallback en memoria.")
+    
+    yield
+    
+    if oracle_pool:
+        oracle_pool.close()
+        print("Oracle DB Connection Pool closed.")
+
+def get_oracle_connection():
+    if oracle_pool:
+        try:
+            return oracle_pool.acquire()
+        except oracledb.Error as e:
+            print(f"Error acquiring connection from pool: {e}")
+            return None
+    return None
 
 # ---------------------------------------------------------
 # CONFIGURATION
@@ -75,16 +101,26 @@ ORACLE_DSN = os.getenv("ORACLE_DSN", "mock_dsn")
 app = FastAPI(
     title="Waterline Protocol API",
     description="Backend API para logística Web3 (Waterline Protocol)",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_CORS_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------------------------------------------------------
+# SEGURIDAD ENDPOINTS
+# ---------------------------------------------------------
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key != API_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="No se pudo validar las credenciales de la API.")
 
 # ---------------------------------------------------------
 # MODELOS
@@ -163,9 +199,12 @@ def encrypt_location(location_str: str) -> bytes:
     encryption scheme compliant with the Avalanche EncryptedERC specifications.
     This guarantees full client-side confidentiality of logistics corridors before transaction mining.
     """
-    import hashlib
-    # Derive a unique symmetric masking key from the contract's environment keys
-    key = hashlib.sha256(PRIVATE_KEY.encode('utf-8')).digest()
+    # Deriva la llave simétrica a partir de PAYLOAD_ENCRYPTION_KEY sin usar hashlib
+    if PAYLOAD_ENCRYPTION_KEY.startswith("0x"):
+        key = bytes.fromhex(PAYLOAD_ENCRYPTION_KEY[2:])[:32]
+    else:
+        key = PAYLOAD_ENCRYPTION_KEY.encode('utf-8')[:32]
+        
     salt = os.urandom(16)
     payload_bytes = location_str.encode('utf-8')
     encrypted_payload = bytes(a ^ b for a, b in zip(payload_bytes, key[:len(payload_bytes)]))
@@ -173,7 +212,7 @@ def encrypt_location(location_str: str) -> bytes:
     return salt + bytes([len(payload_bytes)]) + encrypted_payload
 
 @app.post("/package/update", tags=["Packages"])
-async def update_package_location(update: LocationUpdate):
+async def update_package_location(update: LocationUpdate, api_key: str = Depends(verify_api_key)):
     """
     Encripta la ubicación y actualiza el Smart Contract de Avalanche (eERC / Confidencial).
     Luego guarda los logs encriptados en Oracle DB para auditoría ciega.
@@ -185,35 +224,35 @@ async def update_package_location(update: LocationUpdate):
             "ciphertext": encrypted_bytes
         }
 
-        # 2. Configurar Contrato (Comentado para simulación de Hackathon)
-        # contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
+        # 2. Configurar Contrato
+        contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
         
-        # 3. Construir la Transacción (Comentado para simulación de Hackathon)
-        # nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
-        # chain_id = w3.eth.chain_id
+        # 3. Construir la Transacción
+        nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
+        chain_id = w3.eth.chain_id
 
-        # tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
-        #     'chainId': chain_id,
-        #     'gas': 2000000,
-        #     'maxFeePerGas': w3.to_wei('25', 'gwei'),
-        #     'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
-        #     'nonce': nonce,
-        # })
+        tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
+            'chainId': chain_id,
+            'gas': 2000000,
+            'maxFeePerGas': w3.to_wei('25', 'gwei'),
+            'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
+            'nonce': nonce,
+        })
         
-        # 4. Firmar la Transacción (Comentado para simulación de Hackathon)
-        # signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+        # 4. Firmar la Transacción
+        signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
         
-        # 5. Enviar la Transacción a la Red (Comentado para simulación de Hackathon)
-        # raw_tx = getattr(signed_tx, 'raw_transaction', getattr(signed_tx, 'rawTransaction', None))
-        # tx_hash = w3.eth.send_raw_transaction(raw_tx)
+        # 5. Enviar la Transacción a la Red
+        # Note: raw_transaction no existe en w3.eth.account.sign_transaction en todas las versiones, usar rawTransaction
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
         
-        # 6. Esperar el recibo (Confirmación en la Blockchain) (Comentado para simulación de Hackathon)
-        # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        # 6. Esperar el recibo (Confirmación en la Blockchain)
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         
-        # if tx_receipt.status != 1:
-        #     raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
+        if tx_receipt.status != 1:
+            raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
             
-        real_tx_hash = "0x7d8e9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9a"
+        real_tx_hash = tx_receipt.transactionHash.hex()
         
     except Web3Exception as e:
         raise HTTPException(status_code=500, detail=f"Error de Web3/Avalanche: {str(e)}")
@@ -257,21 +296,31 @@ def init_route_graph() -> nx.DiGraph:
     """Inicializa el grafo dirigido con rutas y distancias (pesos en km)."""
     G = nx.DiGraph()
     # Nodos / Ciudades clave
-    cities = ["CABA", "Mar del Plata", "Rosario", "Córdoba", "Salta"]
+    cities = ["CABA", "Mar del Plata", "Rosario", "Córdoba", "Salta", "Shanghai", "Rotterdam", "Róterdam", "Roterdam"]
     G.add_nodes_from(cities)
     
+    # TODO: Phase 2 - Dynamic routing from Oracle Database
+    # En fase de producción, las aristas y pesos del grafo (distancias reales)
+    # serán consultadas dinámicamente usando el Oracle Connection Pool:
+    # SELECT origen, destino, distancia FROM logistic_routes
+    # Por ahora dejamos las rutas duras como fallback de desarrollo.
+
     # Aristas (origen, destino, distancia en km)
     # Se agregan ida y vuelta para simular rutas bidireccionales
-    # TODO: En fase de producción, las aristas y pesos del grafo (distancias reales) 
-    # serán consultadas dinámicamente desde Oracle Autonomous Database 
-    # utilizando data geoespacial o APIs externas (ej. Google Maps API).
     edges = [
         ("CABA", "Mar del Plata", 415), ("Mar del Plata", "CABA", 415),
         ("CABA", "Rosario", 300), ("Rosario", "CABA", 300),
         ("Rosario", "Córdoba", 400), ("Córdoba", "Rosario", 400),
         ("CABA", "Córdoba", 700), ("Córdoba", "CABA", 700),
         ("Córdoba", "Salta", 870), ("Salta", "Córdoba", 870),
-        ("Rosario", "Salta", 1100), ("Salta", "Rosario", 1100)
+        ("Rosario", "Salta", 1100), ("Salta", "Rosario", 1100),
+        ("Shanghai", "Rotterdam", 10500), ("Rotterdam", "Shanghai", 10500),
+        ("Shanghai", "Róterdam", 10500), ("Róterdam", "Shanghai", 10500),
+        ("Shanghai", "Roterdam", 10500), ("Roterdam", "Shanghai", 10500),
+        ("Shanghai", "CABA", 19500), ("CABA", "Shanghai", 19500),
+        ("Rotterdam", "CABA", 11500), ("CABA", "Rotterdam", 11500),
+        ("Róterdam", "CABA", 11500), ("CABA", "Róterdam", 11500),
+        ("Roterdam", "CABA", 11500), ("CABA", "Roterdam", 11500)
     ]
     G.add_weighted_edges_from(edges)
     return G

@@ -86,7 +86,10 @@ export default function App() {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/package/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-Key': import.meta.env.VITE_API_SECRET_KEY
+        },
         body: JSON.stringify({
           package_id: parseInt(packageId, 10),
           new_location: newLocation
