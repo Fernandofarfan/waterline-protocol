@@ -14,6 +14,12 @@ load_dotenv()
 # ---------------------------------------------------------
 # CONEXIÓN ORACLE DB (THIN MODE)
 # ---------------------------------------------------------
+# In-memory mock DB in case Oracle DB connection is not available
+MOCK_PACKAGE_LOGS = []
+
+# ---------------------------------------------------------
+# CONEXIÓN ORACLE DB (THIN MODE)
+# ---------------------------------------------------------
 def get_oracle_connection():
     try:
         # El modo "thin" es el predeterminado, no requiere instalar Oracle Client
@@ -24,8 +30,8 @@ def get_oracle_connection():
         )
         return connection
     except oracledb.Error as e:
-        print(f"Error conectando a Oracle DB: {e}")
-        raise
+        print(f"Error conectando a Oracle DB: {e}. Usando fallback en memoria.")
+        return None
 
 # ---------------------------------------------------------
 # CONFIGURATION
@@ -105,6 +111,23 @@ async def get_package(id: int):
     """
     try:
         connection = get_oracle_connection()
+        if connection is None:
+            # Fallback en memoria
+            row = None
+            for log in reversed(MOCK_PACKAGE_LOGS):
+                if log["package_id"] == id:
+                    row = (log["location"], log["tx_hash"])
+                    break
+            if row:
+                data = {
+                    "package_id": id,
+                    "current_location": row[0],
+                    "last_tx_hash": row[1]
+                }
+                return {"status": "success", "data": data}
+            else:
+                raise HTTPException(status_code=404, detail="Paquete no encontrado en la base de datos simulada.")
+
         cursor = connection.cursor()
         
         # Consultar el último registro del paquete
@@ -200,7 +223,15 @@ async def update_package_location(update: LocationUpdate):
     # 7. Guardar en Oracle DB la ubicación encriptada (con fines de auditoría de privacidad)
     try:
         ciphertext_hex = "0x" + encrypted_bytes.hex()
-        with get_oracle_connection() as connection:
+        connection = get_oracle_connection()
+        if connection is None:
+            # Fallback en memoria
+            MOCK_PACKAGE_LOGS.append({
+                "package_id": update.package_id,
+                "location": ciphertext_hex,
+                "tx_hash": real_tx_hash
+            })
+        else:
             with connection.cursor() as cursor:
                 sql = """
                     INSERT INTO package_logs (package_id, location, tx_hash)
@@ -208,6 +239,7 @@ async def update_package_location(update: LocationUpdate):
                 """
                 cursor.execute(sql, [update.package_id, ciphertext_hex, real_tx_hash])
                 connection.commit()
+                connection.close()
                 
         return {
             "status": "success", 
@@ -276,8 +308,11 @@ async def optimize_route(origin: str, destination: str):
             "origin": origin,
             "destination": destination,
             "optimal_route": path,
+            "route": path,
             "total_distance_km": distance,
-            "estimated_time_hours": round(estimated_hours, 2)
+            "distance": distance,
+            "estimated_time_hours": round(estimated_hours, 2),
+            "time": round(estimated_hours, 2)
         }
     except ValueError as e:
         valid_nodes = ", ".join(route_graph.nodes())
