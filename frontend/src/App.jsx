@@ -239,6 +239,35 @@ export default function App() {
         </div>
       </header>
 
+      {/* HERO SECTION EXPLICATIVO */}
+      <section className="max-w-7xl mx-auto px-6 pt-12 pb-4">
+        <div className="bg-[#13192B]/50 border border-slate-800/50 rounded-2xl p-8 backdrop-blur-sm">
+          <div className="max-w-3xl">
+            <h2 className="text-3xl font-bold text-white mb-4">El estándar logístico para Activos del Mundo Real (RWA)</h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Waterline Protocol resuelve el dilema del secreto comercial en la supply chain pública. 
+              Calculamos rutas globales eficientes mediante <strong className="text-blue-400">Inteligencia Artificial</strong>, 
+              persistimos telemetría en <strong className="text-red-400">Oracle Cloud</strong> y blindamos la ubicación 
+              geográfica utilizando el estándar de privacidad <strong className="text-cyan-400">EncryptedERC en Avalanche</strong>.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800/50 pt-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20"><BrainCircuit className="w-4 h-4 text-blue-400"/></div>
+              <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">1. Ruteo Dijkstra</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20"><Package className="w-4 h-4 text-cyan-400"/></div>
+              <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">2. Consenso Web3</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#EA4335]/10 flex items-center justify-center border border-[#EA4335]/20"><Database className="w-4 h-4 text-[#EA4335]"/></div>
+              <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">3. Ledger Relacional</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* MAIN GRID LAYOUT */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -607,6 +636,20 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* FOOTER */}
+      <footer className="border-t border-slate-800/60 bg-[#0A0E17] mt-12 py-8">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-slate-500 font-medium">
+            Desarrollado para la Hackathon de Avalanche LatAm Institucional
+          </p>
+          <div className="flex items-center gap-6">
+            <a href="https://github.com/Fernandofarfan/waterline-protocol" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+               Código Fuente <LinkIcon className="w-3 h-3"/>
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
