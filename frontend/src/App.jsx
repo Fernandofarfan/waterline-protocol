@@ -317,6 +317,14 @@ export default function App() {
                       {txResult.tx_hash}
                     </p>
                   </div>
+                  {txResult.encrypted_location_ciphertext && (
+                    <div className="bg-[#13192B] rounded-lg p-3 border border-slate-800 mt-2">
+                      <p className="text-[10px] text-purple-400 uppercase tracking-widest mb-1">Dato Privado Cifrado (EncryptedERC)</p>
+                      <p className="text-slate-400 font-mono text-xs break-all">
+                        {txResult.encrypted_location_ciphertext}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
