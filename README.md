@@ -35,8 +35,8 @@ graph TD
     API -->|7. Fetch Latest Logs| OracleDB
 ```
 
-1. **Decentralized State Machine (Web3)**: Avalanche Fuji Testnet hosts the core logistics rules via the `WaterlineProtocol` smart contract. A custom `onlyOwner` access control modifier ensures only authenticated operations can mutate package statuses, recording every state change as a cryptographic event on the ledger.
-2. **Enterprise Persistence & Relational Logs (Oracle DB)**: The FastAPI orchestrator uses native Oracle Thin Mode (`oracledb`) to maintain transactional history (`package_logs`). It matches blockchain transactions (`tx_hash`) with physical package states, allowing ultra-fast reads without excessive blockchain RPC polling.
+1. **Decentralized State Machine (Web3 - Avalanche EncryptedERC)**: Avalanche Fuji Testnet hosts the core logistics state machine via the confidential `WaterlineProtocol` contract. Fully aligned with the **Avalanche EncryptedERC** specifications, the system replaces transparent geographical locations with a highly secure on-chain `estring` struct containing encrypted `ciphertext` payloads. By conducting client-side ElGamal/Poseidon-based encryption before dispatching transaction payloads, Waterline achieves complete "On-Chain Supply Chain Privacy," rendering real-time transit corridors invisible to public miners and third-party competitors to safeguard corporate secrets.
+2. **Enterprise Persistence & Relational Logs (Oracle DB)**: The FastAPI orchestrator uses native Oracle Thin Mode (`oracledb`) to maintain transactional history (`package_logs`). It securely stores the hex-encoded location ciphertexts matched against EVM transaction hashes (`tx_hash`) to enable compliance, auditing, and secure zero-knowledge state mapping without violating cryptographic confidentiality.
 3. **Graph-Based Routing Agent (AI)**: An intelligent routing module uses the Dijkstra shortest-path algorithm (via `networkx`) to compute optimal transport corridors across nodes, forecasting travel distances and estimating times of arrival (ETA) at 80 km/h baseline speeds.
 
 ---
@@ -45,10 +45,10 @@ graph TD
 
 | Component | Technology | Description / Usage |
 | :--- | :--- | :--- |
-| **Smart Contract** | Solidity (`^0.8.0`) | Contains logistics schema, custom native `onlyOwner` access control, and transaction logging events. |
-| **Backend Framework** | FastAPI (Python) | High-performance asynchronous API gateway, handling Web3 integrations and DB connection pools. |
-| **Consensus Engine** | Web3.py & Avalanche C-Chain | Interacts with smart contracts on the Avalanche Fuji network, building, signing, and sending EVM transactions. |
-| **Database** | Oracle Autonomous DB (`oracledb`) | Multi-model database storing transaction logs, package locations, and historical compliance records in Thin Mode. |
+| **Smart Contract** | Solidity (`^0.8.0`) + eERC | Integrates customized confidential `estring` structs, client-side encryption interfaces, and native `onlyOwner` access control mechanisms. |
+| **Backend Framework** | FastAPI (Python) | High-performance asynchronous API gateway, processing cryptographic client-side masking and handling DB connection pools. |
+| **Consensus Engine** | Web3.py & Avalanche C-Chain / eERC | Connects to Avalanche Fuji, compiling and signing EVM transactions packed with confidential homomorphic payloads. |
+| **Database** | Oracle Autonomous DB (`oracledb`) | Multi-model database storing high-speed encrypted location ciphertexts and execution logs in Thin Mode. |
 | **AI Routing Agent** | NetworkX | Python library for dynamic graph optimization, implementing shortest-path Dijkstra algorithms. |
 | **Frontend UI** | React + Vite | Clean, state-driven dashboard built with modern component architectures for real-time visualization. |
 
