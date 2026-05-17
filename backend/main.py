@@ -230,6 +230,9 @@ def init_route_graph() -> nx.DiGraph:
     
     # Aristas (origen, destino, distancia en km)
     # Se agregan ida y vuelta para simular rutas bidireccionales
+    # TODO: En fase de producción, las aristas y pesos del grafo (distancias reales) 
+    # serán consultadas dinámicamente desde Oracle Autonomous Database 
+    # utilizando data geoespacial o APIs externas (ej. Google Maps API).
     edges = [
         ("CABA", "Mar del Plata", 415), ("Mar del Plata", "CABA", 415),
         ("CABA", "Rosario", 300), ("Rosario", "CABA", 300),
@@ -277,7 +280,11 @@ async def optimize_route(origin: str, destination: str):
             "estimated_time_hours": round(estimated_hours, 2)
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        valid_nodes = ", ".join(route_graph.nodes())
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Error: {str(e)}. Las ciudades válidas son: {valid_nodes}"
+        )
 
 if __name__ == '__main__':
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

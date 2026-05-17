@@ -66,6 +66,8 @@ export default function App() {
       
       const data = await res.json();
       setRouteData(data);
+      setOrigin('');
+      setDestination('');
     } catch (err) {
       setRouteError(err.message || 'Error de conexión con el Agente IA.');
     } finally {
