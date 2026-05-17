@@ -117,9 +117,20 @@ export default function App() {
       <header className="border-b border-slate-800/60 bg-[#0F1423]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.3)]">
-              <LinkIcon className="text-white w-5 h-5" />
-            </div>
+            <svg className="w-11 h-11 drop-shadow-[0_0_12px_rgba(34,211,238,0.4)]" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#22D3EE" />
+                  <stop offset="50%" stopColor="#2563EB" />
+                  <stop offset="100%" stopColor="#EF4444" />
+                </linearGradient>
+              </defs>
+              <path d="M140 340 C140 220, 220 140, 256 140 C292 140, 372 220, 372 340" stroke="url(#logoGrad)" strokeWidth="32" strokeLinecap="round"/>
+              <path d="M180 370 C220 280, 292 280, 332 370" stroke="url(#logoGrad)" strokeWidth="24" strokeLinecap="round" opacity="0.8"/>
+              <circle cx="256" cy="140" r="20" fill="#22D3EE" />
+              <circle cx="140" cy="340" r="16" fill="#2563EB" />
+              <circle cx="372" cy="340" r="16" fill="#EF4444" />
+            </svg>
             <div>
               <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
                 Waterline Protocol
