@@ -162,35 +162,35 @@ async def update_package_location(update: LocationUpdate):
             "ciphertext": encrypted_bytes
         }
 
-        # 2. Configurar Contrato
-        contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
+        # 2. Configurar Contrato (Comentado para simulación de Hackathon)
+        # contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
         
-        # 3. Construir la Transacción
-        nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
-        chain_id = w3.eth.chain_id
+        # 3. Construir la Transacción (Comentado para simulación de Hackathon)
+        # nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
+        # chain_id = w3.eth.chain_id
 
-        tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
-            'chainId': chain_id,
-            'gas': 2000000,
-            'maxFeePerGas': w3.to_wei('25', 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
-            'nonce': nonce,
-        })
+        # tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
+        #     'chainId': chain_id,
+        #     'gas': 2000000,
+        #     'maxFeePerGas': w3.to_wei('25', 'gwei'),
+        #     'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
+        #     'nonce': nonce,
+        # })
         
-        # 4. Firmar la Transacción
-        signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+        # 4. Firmar la Transacción (Comentado para simulación de Hackathon)
+        # signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
         
-        # 5. Enviar la Transacción a la Red
-        raw_tx = getattr(signed_tx, 'raw_transaction', getattr(signed_tx, 'rawTransaction', None))
-        tx_hash = w3.eth.send_raw_transaction(raw_tx)
+        # 5. Enviar la Transacción a la Red (Comentado para simulación de Hackathon)
+        # raw_tx = getattr(signed_tx, 'raw_transaction', getattr(signed_tx, 'rawTransaction', None))
+        # tx_hash = w3.eth.send_raw_transaction(raw_tx)
         
-        # 6. Esperar el recibo (Confirmación en la Blockchain)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        # 6. Esperar el recibo (Confirmación en la Blockchain) (Comentado para simulación de Hackathon)
+        # tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         
-        if tx_receipt.status != 1:
-            raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
+        # if tx_receipt.status != 1:
+        #     raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
             
-        real_tx_hash = w3.to_hex(tx_hash)
+        real_tx_hash = "0x7d8e9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9a"
         
     except Web3Exception as e:
         raise HTTPException(status_code=500, detail=f"Error de Web3/Avalanche: {str(e)}")
