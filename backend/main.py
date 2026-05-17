@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Security, Depends
+from fastapi import FastAPI, HTTPException, Security, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
@@ -6,6 +6,7 @@ from web3 import Web3
 from web3.exceptions import Web3Exception
 import uvicorn
 import os
+import json
 import oracledb
 import networkx as nx
 from dotenv import load_dotenv
@@ -107,7 +108,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_CORS_ORIGIN],
+    allow_origins=[FRONTEND_CORS_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -130,6 +131,39 @@ class LocationUpdate(BaseModel):
     new_location: str
 
 # ---------------------------------------------------------
+# WEBSOCKETS (Tiempo Real)
+# ---------------------------------------------------------
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/tracking")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# ---------------------------------------------------------
 # ENDPOINTS
 # ---------------------------------------------------------
 
@@ -143,22 +177,25 @@ async def health_check():
 @app.get("/package/{id}", tags=["Packages"])
 async def get_package(id: int):
     """
-    Consulta el estado y ubicación del paquete en Oracle DB.
+    Consulta el historial completo del paquete en Oracle DB.
     """
     try:
         connection = get_oracle_connection()
         if connection is None:
             # Fallback en memoria
-            row = None
-            for log in reversed(MOCK_PACKAGE_LOGS):
+            history = []
+            for log in MOCK_PACKAGE_LOGS:
                 if log["package_id"] == id:
-                    row = (log["location"], log["tx_hash"])
-                    break
-            if row:
+                    history.append({
+                        "location": log["location"],
+                        "tx_hash": log["tx_hash"]
+                    })
+            if history:
                 data = {
                     "package_id": id,
-                    "current_location": row[0],
-                    "last_tx_hash": row[1]
+                    "history": history,
+                    "current_location": history[-1]["location"],
+                    "last_tx_hash": history[-1]["tx_hash"]
                 }
                 return {"status": "success", "data": data}
             else:
@@ -166,25 +203,26 @@ async def get_package(id: int):
 
         cursor = connection.cursor()
         
-        # Consultar el último registro del paquete
+        # Consultar el historial del paquete
         query = """
             SELECT location, tx_hash 
             FROM package_logs 
             WHERE package_id = :1 
-            ORDER BY id DESC 
-            FETCH FIRST 1 ROWS ONLY
+            ORDER BY id ASC 
         """
         cursor.execute(query, [id])
-        row = cursor.fetchone()
+        rows = cursor.fetchall()
         
         cursor.close()
         connection.close()
 
-        if row:
+        if rows:
+            history = [{"location": row[0], "tx_hash": row[1]} for row in rows]
             data = {
                 "package_id": id,
-                "current_location": row[0],
-                "last_tx_hash": row[1]
+                "history": history,
+                "current_location": history[-1]["location"],
+                "last_tx_hash": history[-1]["tx_hash"]
             }
             return {"status": "success", "data": data}
         else:
@@ -224,35 +262,44 @@ async def update_package_location(update: LocationUpdate, api_key: str = Depends
             "ciphertext": encrypted_bytes
         }
 
-        # 2. Configurar Contrato
-        contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
         
-        # 3. Construir la Transacción
-        nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
-        chain_id = w3.eth.chain_id
-
-        tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
-            'chainId': chain_id,
-            'gas': 2000000,
-            'maxFeePerGas': w3.to_wei('25', 'gwei'),
-            'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
-            'nonce': nonce,
-        })
-        
-        # 4. Firmar la Transacción
-        signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
-        
-        # 5. Enviar la Transacción a la Red
-        # Note: raw_transaction no existe en w3.eth.account.sign_transaction en todas las versiones, usar rawTransaction
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        
-        # 6. Esperar el recibo (Confirmación en la Blockchain)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        
-        if tx_receipt.status != 1:
-            raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
+        import asyncio
+        # 2. Mock mode si no hay llaves configuradas (Para la DEMO local)
+        if PRIVATE_KEY == "0x0000000000000000000000000000000000000000000000000000000000000000":
+            import time
+            import hashlib
+            await asyncio.sleep(2) # Simular latencia de blockchain
+            mock_hash = hashlib.sha256(f"{update.package_id}{time.time()}".encode()).hexdigest()
+            real_tx_hash = "0x" + mock_hash
+        else:
+            # 2. Configurar Contrato Real
+            contract = w3.eth.contract(address=w3.to_checksum_address(CONTRACT_ADDRESS), abi=CONTRACT_ABI)
             
-        real_tx_hash = tx_receipt.transactionHash.hex()
+            # 3. Construir la Transacción
+            nonce = w3.eth.get_transaction_count(w3.to_checksum_address(ACCOUNT_ADDRESS))
+            chain_id = w3.eth.chain_id
+
+            tx = contract.functions.updateLocation(update.package_id, encrypted_location_arg).build_transaction({
+                'chainId': chain_id,
+                'gas': 2000000,
+                'maxFeePerGas': w3.to_wei('25', 'gwei'),
+                'maxPriorityFeePerGas': w3.to_wei('2', 'gwei'),
+                'nonce': nonce,
+            })
+            
+            # 4. Firmar la Transacción
+            signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+            
+            # 5. Enviar la Transacción a la Red
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            
+            # 6. Esperar el recibo (Confirmación en la Blockchain)
+            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+            
+            if tx_receipt.status != 1:
+                raise HTTPException(status_code=400, detail="La transacción falló en la blockchain.")
+                
+            real_tx_hash = tx_receipt.transactionHash.hex()
         
     except Web3Exception as e:
         raise HTTPException(status_code=500, detail=f"Error de Web3/Avalanche: {str(e)}")
@@ -279,6 +326,19 @@ async def update_package_location(update: LocationUpdate, api_key: str = Depends
                 cursor.execute(sql, [update.package_id, ciphertext_hex, real_tx_hash])
                 connection.commit()
                 connection.close()
+                
+        # Emitir evento WebSocket al Frontend
+        try:
+            ws_payload = {
+                "type": "PACKAGE_UPDATED",
+                "package_id": update.package_id,
+                "new_location": update.new_location,
+                "ciphertext": ciphertext_hex,
+                "tx_hash": real_tx_hash
+            }
+            await manager.broadcast(json.dumps(ws_payload))
+        except Exception as ws_error:
+            print(f"Error emitiendo evento WS: {ws_error}")
                 
         return {
             "status": "success", 

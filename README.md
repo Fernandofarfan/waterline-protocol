@@ -39,6 +39,13 @@ graph TD
 2. **Enterprise Persistence & Relational Logs (Oracle DB)**: The FastAPI orchestrator uses native Oracle Thin Mode (`oracledb`) to maintain transactional history (`package_logs`). It securely stores the hex-encoded location ciphertexts matched against EVM transaction hashes (`tx_hash`) to enable compliance, auditing, and secure zero-knowledge state mapping without violating cryptographic confidentiality.
 3. **Graph-Based Routing Agent (AI)**: An intelligent routing module uses the Dijkstra shortest-path algorithm (via `networkx`) to compute optimal transport corridors across nodes, forecasting travel distances and estimating times of arrival (ETA) at 80 km/h baseline speeds.
 
+## 🎨 Nuevas Funcionalidades Demos (MVP)
+Para facilitar pruebas locales y presentaciones rápidas, se implementaron mejoras en la interfaz de usuario y arquitectura local:
+*   **🌍 Mapa Interactivo Real-time**: La interfaz ahora integra `react-leaflet`, dibujando los nodos propuestos por la IA directamente sobre un mapa global (con tema Dark Matter) y uniendo los puntos logísticos en un recorrido renderizado de manera automática.
+*   **⏳ Línea de Tiempo (Stepper) Completa**: El Portal de Trazabilidad RWA consolida todo el historial de la base de datos de Oracle, visualizando cada etapa por donde pasó el paquete utilizando una interfaz vertical en forma de línea de tiempo con su estado encriptado.
+*   **🔗 Enlaces Directos a Snowtrace**: Cada *Transaction Hash (TxID)* de Avalanche generado por la dApp enlaza de forma automática hacia [testnet.snowtrace.io](https://testnet.snowtrace.io), permitiendo auditar la veracidad On-Chain de tu transacción simulada, instantáneamente en otra pestaña.
+*   **🛠️ Mock Mode (Simulación Blockchain Local)**: Si tu archivo `backend/.env` tiene la private key vacía/default (`0x000...`), el protocolo enciende el *Mock Mode*. Esto simulará el retraso por confirmación de nodos de Avalanche y devolverá una operación exitosa local para que toda la DApp pueda ejecutarse correctamente sin requerir setups EVM exhaustivos.
+
 ---
 
 ## 💻 Detailed Tech Stack
