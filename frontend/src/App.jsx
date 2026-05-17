@@ -246,7 +246,7 @@ export default function App() {
           {/* ================================================== */}
           {/* CARD 1: AGENTE IA (ENRUTAMIENTO)                     */}
           {/* ================================================== */}
-          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative">
+          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative hover:border-slate-700/80 hover:shadow-[0_0_40px_rgba(34,211,238,0.07)] transition-all duration-700">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
             
             <div className="p-8">
@@ -270,7 +270,7 @@ export default function App() {
                       required
                       value={origin} 
                       onChange={e => setOrigin(e.target.value)}
-                      className="w-full bg-[#0A0E17] border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none"
+                      className="w-full bg-[#0A0E17] border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none cursor-pointer hover:border-blue-500/50 hover:bg-[#0f1423]"
                     >
                       <option value="" disabled>Seleccionar origen...</option>
                       {['CABA', 'Mar del Plata', 'Rosario', 'Córdoba', 'Salta', 'Shanghai', 'Rotterdam'].map(city => (
@@ -286,7 +286,7 @@ export default function App() {
                       required
                       value={destination} 
                       onChange={e => setDestination(e.target.value)}
-                      className="w-full bg-[#0A0E17] border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none"
+                      className="w-full bg-[#0A0E17] border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-medium appearance-none cursor-pointer hover:border-blue-500/50 hover:bg-[#0f1423]"
                     >
                       <option value="" disabled>Seleccionar destino...</option>
                       {['CABA', 'Mar del Plata', 'Rosario', 'Córdoba', 'Salta', 'Shanghai', 'Rotterdam'].map(city => (
@@ -299,7 +299,7 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={isRouting}
-                  className="w-full bg-blue-600/90 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(37,99,235,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-blue-600/90 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(37,99,235,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transform-gpu"
                 >
                   {isRouting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Route className="w-5 h-5" />}
                   {isRouting ? 'Procesando tensores...' : 'Calcular Ruta Óptima con IA'}
@@ -384,7 +384,7 @@ export default function App() {
           {/* ================================================== */}
           {/* CARD 2: ORÁCULO WEB3 (AVALANCHE + OCI)               */}
           {/* ================================================== */}
-          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative">
+          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative hover:border-slate-700/80 hover:shadow-[0_0_40px_rgba(34,211,238,0.07)] transition-all duration-700">
             {/* Ambient Red/Cyan subtle glow */}
             <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-[#EA4335]"></div>
             
@@ -422,7 +422,7 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={isTransacting}
-                  className="w-full relative overflow-hidden bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(34,211,238,0.2)] disabled:opacity-80 disabled:cursor-not-allowed group"
+                  className="w-full relative overflow-hidden bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(34,211,238,0.2)] disabled:opacity-80 disabled:cursor-not-allowed group hover:scale-[1.02] active:scale-[0.98] transform-gpu"
                 >
                   {isTransacting ? (
                     <div className="flex items-center justify-center gap-3 relative z-10 w-full">
@@ -483,7 +483,7 @@ export default function App() {
           {/* ================================================== */}
           {/* CARD 3: PORTAL DE TRAZABILIDAD (TRACKING)            */}
           {/* ================================================== */}
-          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative lg:col-span-2">
+          <div className="bg-[#13192B] border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative lg:col-span-2 hover:border-slate-700/80 hover:shadow-[0_0_40px_rgba(34,211,238,0.07)] transition-all duration-700">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-600"></div>
             
             <div className="p-8">
@@ -509,7 +509,7 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={isTracking}
-                  className="bg-purple-600/90 hover:bg-purple-500 text-white font-semibold px-8 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(168,85,247,0.2)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="bg-purple-600/90 hover:bg-purple-500 text-white font-semibold px-8 py-3.5 rounded-xl transition-all shadow-[0_4px_20px_rgba(168,85,247,0.2)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap hover:scale-[1.02] active:scale-[0.98] transform-gpu"
                 >
                   {isTracking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                   Consultar Ledger
@@ -534,7 +534,7 @@ export default function App() {
                       <div className="relative border-l border-purple-500/30 ml-3 space-y-6 mt-6">
                         {trackResult.history.map((step, idx) => (
                           <div key={idx} className="relative pl-6">
-                            <div className="absolute -left-1.5 top-1.5 w-3 h-3 bg-[#0A0E17] border-2 border-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]"></div>
+                            <div className={`absolute -left-1.5 top-1.5 w-3 h-3 border-2 border-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)] ${idx === trackResult.history.length - 1 ? 'bg-purple-500 animate-pulse shadow-[0_0_15px_rgba(168,85,247,1)]' : 'bg-[#0A0E17]'}`}></div>
                             <div className="bg-[#13192B] rounded-lg p-4 border border-slate-800 transition-all hover:border-purple-500/50">
                               <div className="flex items-center justify-between mb-2">
                                 <p className="text-[10px] text-purple-400 uppercase tracking-widest">
