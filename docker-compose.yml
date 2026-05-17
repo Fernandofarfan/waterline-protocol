@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  db:
+    image: gvenzl/oracle-free:latest
+    container_name: waterline-oracle
+    environment:
+      - ORACLE_PASSWORD=mock_password
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: waterline-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: always
+
+volumes:
+  oracle_data:
