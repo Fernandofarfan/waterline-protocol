@@ -48,6 +48,145 @@ Para facilitar pruebas locales y presentaciones rápidas, se implementaron mejor
 
 ---
 
+
+## ⛓️ HumanityChain — Complete Quality Blockchain Blueprint (90 días)
+
+### ¿Qué es?
+**HumanityChain** es una blockchain omnichain de calidad completa, diseñada como proyecto soberano y separado: **no está asociada a Waterline ni a ningún otro proyecto previo**. Su misión es resolver problemas humanos críticos con transparencia, velocidad y costos accesibles.
+
+### ¿Qué hace?
+- **Coordina trazabilidad crítica** para salud, alimentos, emergencias y logística humanitaria.
+- **Sincroniza estado entre múltiples dominios** para alta disponibilidad y resiliencia.
+- **Habilita experiencia gasless** para usuarios finales mediante relayer/paymaster dedicado.
+- **Aplica reglas de prioridad humanitaria** auditables y verificables.
+- **Entrega métricas de impacto social** en tiempo real para toma de decisiones.
+
+### ¿Por qué existe?
+Porque los sistemas actuales suelen ser caros, opacos o fragmentados. HumanityChain propone una base abierta y verificable para operaciones donde el tiempo y la confiabilidad salvan vidas.
+
+### Principio irrenunciable: No Daño Humano
+HumanityChain se define bajo un principio absoluto: **no debe utilizarse para causar daño a ningún ser humano**. Cualquier implementación, integración o despliegue debe incluir mecanismos de prevención, monitoreo y bloqueo ante usos abusivos.
+
+### Derechos de uso universal
+- **Acceso abierto sin discriminación**: cualquier persona u organización puede usar HumanityChain sin distinción de país, clase social, tamaño empresarial o capacidad económica.
+- **Neutralidad económica**: diseño pensado para que pequeños actores puedan operar en igualdad funcional con grandes empresas.
+- **Interoperabilidad pública**: estándares abiertos para que terceros integren sin barreras propietarias.
+
+### Adopción inclusiva para empresas y comunidades
+- **Mismo estándar para todos**: pymes, cooperativas, ONGs, gobiernos locales y grandes corporaciones operan sobre las mismas reglas.
+- **Costos previsibles y transparentes**: estructura de costos clara para facilitar entrada de organizaciones pequeñas.
+- **Integración gradual**: APIs y módulos para adopción por etapas sin reemplazo total inmediato.
+
+### Cobertura de usos humanos (enfoque generalista)
+HumanityChain está diseñada para servir múltiples necesidades humanas legítimas: logística, salud, abastecimiento, educación, trazabilidad productiva, coordinación de emergencias, comercio y servicios digitales, siempre bajo el principio de no daño humano.
+
+### Accesibilidad universal (ciegos, sordos, mudos y más)
+Para que nadie quede fuera, HumanityChain debe adoptar accesibilidad como requisito de arquitectura, no como extra opcional:
+- **Personas ciegas o con baja visión**: soporte completo para lectores de pantalla, navegación por teclado, etiquetas ARIA, alto contraste y contenido compatible con braille digital.
+- **Personas sordas o hipoacúsicas**: alertas visuales equivalentes, subtítulos y transcripción en tiempo real para contenidos audiovisuales y soporte en lengua de señas en canales críticos.
+- **Personas mudas o con dificultades del habla**: flujos 100% textuales, comandos asistidos, plantillas de comunicación rápida y autenticación sin dependencia de voz.
+- **Diseño multimodal para todos**: texto, visual, vibración/háptico y notificaciones estructuradas para distintos contextos de uso.
+
+### Qué le falta hoy y cómo mejorarlo (prioridad alta)
+- **Falta una política formal de accesibilidad** → crear estándar interno alineado con **WCAG 2.2 AA** para frontend, paneles y documentación.
+- **Faltan criterios verificables** → agregar KPIs de inclusión (tasa de tareas completadas por usuarios con asistencia, tiempo medio de operación accesible, errores por barrera).
+- **Falta validación real con usuarios** → ejecutar pruebas de usabilidad con personas ciegas, sordas y mudas antes de cada release mayor.
+- **Falta accesibilidad en incidentes** → playbooks de emergencia con formatos accesibles (texto simple, visual, subtitulado y lectura automatizada).
+- **Falta gobernanza inclusiva** → comité de accesibilidad con participación de comunidades usuarias y revisión trimestral de cumplimiento.
+
+### Canales de acceso por tipo de persona (inclusión total)
+- **App móvil accesible** (Android/iOS): lector de pantalla, navegación por gestos y modo alto contraste.
+- **Web universal**: teclado completo, subtitulado, lenguaje claro y soporte multilenguaje.
+- **Canal asistido por mensajería**: operaciones guiadas por chat para personas con baja alfabetización digital.
+- **Modo offline/low-bandwidth**: confirmaciones diferidas y sincronización cuando vuelve la conectividad.
+- **Centros de atención comunitaria**: operación asistida para personas mayores o con barreras tecnológicas.
+
+### Super-app internacional (inspiración tipo WeChat, con enfoque abierto)
+HumanityChain puede evolucionar a una **super-app interoperable** que unifique servicios cotidianos sobre blockchain:
+- **Pagos**: transferencias, cobros QR y liquidación trazable.
+- **Identidad verificable**: credenciales descentralizadas (DID/VC) para KYC portable y privacidad selectiva.
+- **Viajes y movilidad**: tickets, reservas, seguros y validaciones fronterizas compatibles con regulaciones locales.
+- **Servicios cívicos y comerciales**: acceso a ayudas, facturación, certificaciones y contratos digitales.
+- **Motor de cumplimiento internacional**: reglas por jurisdicción (AML/KYC, protección de datos, fiscalidad) sin romper UX.
+
+### Requisitos para uso internacional
+- **Arquitectura multi-país**: dominios regionales + estándar común `HCMessage` para interoperar globalmente.
+- **Cumplimiento por capas**: módulos configurables por región (GDPR/privacidad, AML, sanciones, identidad).
+- **Localización completa**: idioma, moneda, formatos legales y accesibilidad cultural.
+- **Gobernanza global inclusiva**: representación de comunidades, pymes, ONGs y grandes empresas en decisiones clave.
+- **Portabilidad de cuenta y reputación**: una identidad usable en distintos países y servicios.
+
+### Principios de calidad completa (v1)
+- **Independencia total**: marca, contratos, red, infraestructura y gobernanza propias de HumanityChain.
+- **Seguridad por diseño**: hardening multicapa, pruebas de estrés y control anti-replay desde el protocolo.
+- **Escalabilidad práctica**: arquitectura modular omnichain preparada para crecimiento regional.
+- **Costo operativo eficiente**: costo casi cero para usuario final con trazabilidad del subsidio.
+- **Impacto humano medible**: toda mejora técnica debe mapear a una mejora social concreta.
+
+### Alcance funcional (MVP)
+1. **Dominio canónico HumanityChain Hub** con estado oficial de operaciones.
+2. **2 dominios Spoke EVM** para replicación de estado y continuidad operativa.
+3. **Estándar de mensajería `HCMessage v1`** (hash, nonce, domain, replay-protection).
+4. **Relayer Network + Paymaster** propios de HumanityChain para UX gasless.
+5. **Motor de priorización humanitaria** con perfiles por criticidad (`medical`, `food`, `emergency`, `standard`).
+
+### Arquitectura mínima independiente
+- **HumanityHub.sol**: contrato canónico de estados, custodia y eventos críticos.
+- **HumanitySpoke.sol**: contratos espejo para sincronización verificada por mensaje.
+- **Humanity Relayer**: cola transaccional, idempotencia, reintentos y reconciliación cross-domain.
+- **Impact Ledger**: almacenamiento de auditoría y KPIs sociales por operación.
+- **Policy Engine**: reglas auditables para priorización y límites de riesgo.
+
+### Métricas de éxito (producto + impacto)
+- p95 API `< 400ms` (sin finalización on-chain).
+- Confirmación UX `< 2s` en estado `pending`.
+- Costo usuario final = `0` en ≥ 97% de operaciones.
+- Integridad omnichain: 0 pérdidas de eventos tras política de reintentos.
+- Reducción de tiempo en envíos críticos ≥ 25% en piloto.
+- Disponibilidad operacional ≥ 99.9% en ventana mensual.
+
+
+### Estado de implementación actual (base creada)
+- ✅ Endpoint operativo `POST /v1/humanity/operation/update` en backend (`FastAPI`) con:
+  - `message_id` determinístico (`sha256`) sobre operación + payload.
+  - Idempotencia básica (si se repite, marca estado `replayed`).
+  - Emisión por WebSocket de evento `HUMANITY_OPERATION_UPDATED`.
+- ✅ Endpoint `GET /v1/humanity/operations` para consulta de operaciones registradas.
+- ✅ Contratos base creados:
+  - `contracts/HumanityHub.sol`
+  - `contracts/HumanitySpoke.sol`
+
+
+### Checklist para dejarla lista para despliegue
+- [x] Contratos base `HumanityHub.sol` y `HumanitySpoke.sol` creados.
+- [x] Endpoint de creación de operación omnichain (`POST /v1/humanity/operation/update`).
+- [x] Endpoint de transición de estado (`POST /v1/humanity/operation/state`).
+- [x] Endpoint de salud operativa HumanityChain (`GET /v1/humanity/health`) para monitoreo.
+- [x] Endpoint de métricas operativas (`GET /v1/humanity/metrics`) para observabilidad básica.
+- [x] Endpoint paginado de operaciones (`GET /v1/humanity/operations/paginated`) y persistencia atómica en disco.
+- [x] Endpoint de filtrado (`GET /v1/humanity/operations/filter`) e índices SQLite para consultas por estado/tiempo.
+- [x] Persistencia dual JSON + SQLite (`HUMANITY_DB_PATH`) para mayor resiliencia local y recuperación de estado.
+- [x] Persistencia local de operaciones para no perder datos al reiniciar backend.
+- [x] Validaciones anti-abuso en API: límite de payload, chains permitidas, sin duplicados y límites de fanout.
+- [x] Rate limiting configurable por API key para reducir abuso y flooding.
+- [x] Rate limiting adicional por IP (`HUMANITY_IP_RATE_LIMIT_*`) para endurecer perímetro de API.
+- [x] Trazabilidad temporal (`created_at`/`updated_at`) y control de conflicto por `operation_id` para consistencia.
+- [x] Máquina de estados con transiciones válidas (protección ante cambios inconsistentes).
+- [x] Controles adicionales on-chain en Hub/Spoke (`operationId` y `messageHash` no nulos, perfil crítico acotado).
+- [x] Suite inicial de tests API para flujo HumanityChain y tests de contratos base con Foundry.
+- [x] Guía de despliegue de contratos base (`contracts/README.md`) para testnet/mainnet.
+- [ ] Auditoría externa + bug bounty (ver `SECURITY.md`).
+- [x] Runbook inicial de monitoreo/SLO/SLA (`backend/monitoring_runbook.md`).
+
+### Backlog técnico priorizado
+- [x] Publicar especificación `HCMessage v1` + vectores de prueba (`contracts/HCMessage_v1.md`).
+- [ ] Implementar `HumanityHub.sol` y `HumanitySpoke.sol` como contratos base.
+- [ ] Exponer endpoint `POST /v1/humanity/operation/update` con `criticality_profile`.
+- [ ] Persistir estados: `queued`, `sent`, `acknowledged`, `finalized`, `failed`, `replayed`.
+- [ ] Añadir pruebas de caos: caída RPC, reorder, replay, duplicado y partición de red.
+- [ ] Integrar observabilidad con alertas SLO/SLA y tablero de impacto humano.
+- [ ] Ejecutar auditoría externa y bug bounty antes de piloto público.
+
 ## 💻 Detailed Tech Stack
 
 | Component | Technology | Description / Usage |
@@ -221,3 +360,16 @@ The user interface dashboard will run at **`http://localhost:5173`** (or another
   "estimated_time_hours": 17.5
 }
 ```
+
+
+## 🔐 Security & Operations
+- Política de seguridad: `SECURITY.md`
+- Runbook de monitoreo e incidentes: `backend/monitoring_runbook.md`
+
+
+## ✅ Final Go-Live Checklist
+- Checklist de despliegue final: `DEPLOY_CHECKLIST.md`
+
+
+## 🧪 Smoke Test rápido
+- Ejecutar: `API_KEY=... BASE_URL=http://localhost:8000 python backend/smoke_test_humanity.py`
