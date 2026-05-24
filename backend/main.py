@@ -1,18 +1,28 @@
-from fastapi import FastAPI, HTTPException, Security, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Security, Depends, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from web3 import Web3
 from web3.exceptions import Web3Exception
 import uvicorn
 import os
 import json
+import hashlib
+import logging
+import sqlite3
+from pathlib import Path
 import oracledb
 import networkx as nx
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+from threading import Lock
+from time import time
+from datetime import datetime, timezone
 
 load_dotenv()
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger("humanitychain")
 
 # ---------------------------------------------------------
 # VARIABLES DE ENTORNO
@@ -27,7 +37,72 @@ API_SECRET_KEY = os.getenv("API_SECRET_KEY", "clave_secreta_para_proteger_endpoi
 # In-memory mock DB in case Oracle DB connection is not available
 MOCK_PACKAGE_LOGS = []
 
+HUMANITY_OPERATION_LOGS = []
+VALID_HUMANITY_STATES = {"queued", "sent", "acknowledged", "finalized", "failed", "replayed"}
+HUMANITY_LOG_FILE = Path(os.getenv("HUMANITY_LOG_FILE", "backend/humanity_operations.json"))
+HUMANITY_DB_PATH = Path(os.getenv("HUMANITY_DB_PATH", "backend/humanity_operations.db"))
+MAX_PAYLOAD_BYTES = int(os.getenv("HUMANITY_MAX_PAYLOAD_BYTES", "8192"))
+MAX_TARGET_CHAINS = int(os.getenv("HUMANITY_MAX_TARGET_CHAINS", "8"))
+ALLOWED_TARGET_CHAINS = set(filter(None, os.getenv("HUMANITY_ALLOWED_TARGET_CHAINS", "hub,spoke-a,spoke-b").split(",")))
+_HUMANITY_LOG_LOCK = Lock()
+_HUMANITY_STATE_LOCK = Lock()
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("HUMANITY_RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("HUMANITY_RATE_LIMIT_MAX_REQUESTS", "120"))
+_REQUEST_COUNTER = {}
+_REQUEST_COUNTER_LOCK = Lock()
+IP_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("HUMANITY_IP_RATE_LIMIT_WINDOW_SECONDS", "60"))
+IP_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("HUMANITY_IP_RATE_LIMIT_MAX_REQUESTS", "300"))
+_IP_REQUEST_COUNTER = {}
+_IP_REQUEST_COUNTER_LOCK = Lock()
+HUMANITY_METRICS = {"created": 0, "replayed": 0, "state_updates": 0, "rate_limited": 0}
+_HUMANITY_METRICS_LOCK = Lock()
+
 oracle_pool = None
+
+
+def _init_humanity_db() -> None:
+    HUMANITY_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(HUMANITY_DB_PATH)
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS humanity_operations (
+                message_id TEXT PRIMARY KEY,
+                operation_id INTEGER NOT NULL,
+                criticality_profile TEXT NOT NULL,
+                state TEXT NOT NULL,
+                target_chains_json TEXT NOT NULL,
+                tx_hashes_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_hc_operation_id ON humanity_operations(operation_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_hc_state ON humanity_operations(state)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_hc_updated_at ON humanity_operations(updated_at)")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _load_humanity_from_db() -> None:
+    conn = sqlite3.connect(HUMANITY_DB_PATH)
+    try:
+        rows = conn.execute("SELECT message_id, operation_id, criticality_profile, state, target_chains_json, tx_hashes_json, created_at, updated_at FROM humanity_operations ORDER BY created_at ASC").fetchall()
+        with _HUMANITY_STATE_LOCK:
+            HUMANITY_OPERATION_LOGS.clear()
+            for r in rows:
+                HUMANITY_OPERATION_LOGS.append({
+                "message_id": r[0],
+                "operation_id": r[1],
+                "criticality_profile": r[2],
+                "state": r[3],
+                "target_chains": json.loads(r[4]),
+                "tx_hashes": json.loads(r[5]),
+                "created_at": r[6],
+                    "updated_at": r[7],
+                })
+    finally:
+        conn.close()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,7 +119,18 @@ async def lifespan(app: FastAPI):
         print("Oracle DB Connection Pool created.")
     except oracledb.Error as e:
         print(f"Error creating Oracle DB pool: {e}. Usando fallback en memoria.")
-    
+
+    try:
+        _init_humanity_db()
+        _load_humanity_from_db()
+        if not HUMANITY_OPERATION_LOGS and HUMANITY_LOG_FILE.exists():
+            loaded = json.loads(HUMANITY_LOG_FILE.read_text(encoding="utf-8"))
+            if isinstance(loaded, list):
+                HUMANITY_OPERATION_LOGS.clear()
+                HUMANITY_OPERATION_LOGS.extend(loaded)
+    except Exception as e:
+        print(f"No se pudo cargar persistencia HumanityChain: {e}")
+
     yield
     
     if oracle_pool:
@@ -129,6 +215,167 @@ def verify_api_key(api_key: str = Security(api_key_header)):
 class LocationUpdate(BaseModel):
     package_id: int
     new_location: str
+
+
+class HumanityOperationUpdate(BaseModel):
+    operation_id: int
+    criticality_profile: str
+    target_chains: list[str] = Field(default_factory=lambda: ["hub"])
+    payload: dict = Field(default_factory=dict)
+
+class HumanityOperationRecord(BaseModel):
+    operation_id: int
+    message_id: str
+    criticality_profile: str
+    state: str
+    target_chains: list[str]
+    tx_hashes: dict
+
+
+class HumanityOperationStateUpdate(BaseModel):
+    message_id: str
+    state: str
+
+
+class HumanityOperationsQuery(BaseModel):
+    offset: int = 0
+    limit: int = 50
+
+
+def persist_humanity_logs() -> None:
+    with _HUMANITY_LOG_LOCK:
+        HUMANITY_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = HUMANITY_LOG_FILE.with_suffix(".tmp")
+        with _HUMANITY_STATE_LOCK:
+            snapshot = [dict(x) for x in HUMANITY_OPERATION_LOGS]
+        tmp.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(HUMANITY_LOG_FILE)
+
+        conn = sqlite3.connect(HUMANITY_DB_PATH)
+        try:
+            conn.execute("DELETE FROM humanity_operations")
+            conn.executemany(
+                """
+                INSERT INTO humanity_operations (message_id, operation_id, criticality_profile, state, target_chains_json, tx_hashes_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        op["message_id"],
+                        op["operation_id"],
+                        op["criticality_profile"],
+                        op["state"],
+                        json.dumps(op["target_chains"], ensure_ascii=False),
+                        json.dumps(op["tx_hashes"], ensure_ascii=False),
+                        op.get("created_at", _utc_now_iso()),
+                        op.get("updated_at", _utc_now_iso()),
+                    )
+                    for op in snapshot
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+
+
+
+
+
+
+def _extract_client_ip(request: Request | None) -> str:
+    if request is None:
+        return "unknown"
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _cleanup_ip_rate_limit_buckets(current_bucket: int) -> None:
+    stale = []
+    for key in _IP_REQUEST_COUNTER.keys():
+        try:
+            bucket = int(key.rsplit(":", 1)[1])
+            if bucket < current_bucket - 2:
+                stale.append(key)
+        except Exception:
+            stale.append(key)
+    for key in stale:
+        _IP_REQUEST_COUNTER.pop(key, None)
+
+
+def _ip_rate_limit_or_raise(client_ip: str) -> None:
+    now = int(time())
+    bucket = now // IP_RATE_LIMIT_WINDOW_SECONDS
+    key = f"{client_ip}:{bucket}"
+    with _IP_REQUEST_COUNTER_LOCK:
+        _cleanup_ip_rate_limit_buckets(bucket)
+        count = _IP_REQUEST_COUNTER.get(key, 0) + 1
+        _IP_REQUEST_COUNTER[key] = count
+        if count > IP_RATE_LIMIT_MAX_REQUESTS:
+            with _HUMANITY_METRICS_LOCK:
+                HUMANITY_METRICS["rate_limited"] += 1
+            raise HTTPException(status_code=429, detail="Rate limit por IP excedido para HumanityChain API")
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _cleanup_rate_limit_buckets(current_bucket: int) -> None:
+    stale_prefixes = []
+    for key in _REQUEST_COUNTER.keys():
+        try:
+            bucket = int(key.rsplit(":", 1)[1])
+            if bucket < current_bucket - 2:
+                stale_prefixes.append(key)
+        except Exception:
+            stale_prefixes.append(key)
+    for key in stale_prefixes:
+        _REQUEST_COUNTER.pop(key, None)
+
+def _rate_limit_or_raise(api_key: str) -> None:
+    now = int(time())
+    bucket = now // RATE_LIMIT_WINDOW_SECONDS
+    key = f"{api_key}:{bucket}"
+    with _REQUEST_COUNTER_LOCK:
+        _cleanup_rate_limit_buckets(bucket)
+        count = _REQUEST_COUNTER.get(key, 0) + 1
+        _REQUEST_COUNTER[key] = count
+        if count > RATE_LIMIT_MAX_REQUESTS:
+            with _HUMANITY_METRICS_LOCK:
+                HUMANITY_METRICS["rate_limited"] += 1
+            raise HTTPException(status_code=429, detail="Rate limit excedido para HumanityChain API")
+
+
+def _validate_target_chains(target_chains: list[str]) -> None:
+    if not target_chains:
+        raise HTTPException(status_code=400, detail="target_chains no puede estar vacío")
+    if len(target_chains) > MAX_TARGET_CHAINS:
+        raise HTTPException(status_code=400, detail=f"target_chains excede máximo permitido ({MAX_TARGET_CHAINS})")
+    if len(set(target_chains)) != len(target_chains):
+        raise HTTPException(status_code=400, detail="target_chains no puede contener duplicados")
+    unknown = [c for c in target_chains if c not in ALLOWED_TARGET_CHAINS]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"target_chains no permitidas: {unknown}")
+
+
+def _validate_payload_size(payload: dict) -> None:
+    payload_size = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+    if payload_size > MAX_PAYLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"payload excede límite de {MAX_PAYLOAD_BYTES} bytes")
+
+ALLOWED_STATE_TRANSITIONS = {
+    "queued": {"sent", "failed"},
+    "sent": {"acknowledged", "failed"},
+    "acknowledged": {"finalized", "failed"},
+    "failed": set(),
+    "finalized": set(),
+    "replayed": set()
+}
 
 # ---------------------------------------------------------
 # WEBSOCKETS (Tiempo Real)
@@ -267,7 +514,6 @@ async def update_package_location(update: LocationUpdate, api_key: str = Depends
         # 2. Mock mode si no hay llaves configuradas (Para la DEMO local)
         if PRIVATE_KEY == "0x0000000000000000000000000000000000000000000000000000000000000000":
             import time
-            import hashlib
             await asyncio.sleep(2) # Simular latencia de blockchain
             mock_hash = hashlib.sha256(f"{update.package_id}{time.time()}".encode()).hexdigest()
             real_tx_hash = "0x" + mock_hash
@@ -348,6 +594,164 @@ async def update_package_location(update: LocationUpdate, api_key: str = Depends
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error registrando en Oracle DB: {str(e)}")
+
+
+
+@app.post("/v1/humanity/operation/update", tags=["HumanityChain"])
+async def humanity_operation_update(update: HumanityOperationUpdate, request: Request = None, api_key: str = Depends(verify_api_key)):
+    """Crea una operación omnichain simulada con message_id determinístico e idempotencia básica."""
+    if update.criticality_profile not in {"medical", "food", "emergency", "standard"}:
+        raise HTTPException(status_code=400, detail="criticality_profile inválido. Use: medical|food|emergency|standard")
+
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    _validate_target_chains(update.target_chains)
+    _validate_payload_size(update.payload)
+
+    canonical = json.dumps(update.payload, sort_keys=True, ensure_ascii=False)
+    message_id = hashlib.sha256(f"{update.operation_id}|{update.criticality_profile}|{canonical}".encode("utf-8")).hexdigest()
+
+    with _HUMANITY_STATE_LOCK:
+        existing_operation = next((x for x in HUMANITY_OPERATION_LOGS if x["operation_id"] == update.operation_id), None)
+    if existing_operation and existing_operation.get("message_id") != message_id:
+        raise HTTPException(status_code=409, detail="operation_id ya existe con payload distinto")
+
+    with _HUMANITY_STATE_LOCK:
+        existing = next((x for x in HUMANITY_OPERATION_LOGS if x["message_id"] == message_id), None)
+    if existing:
+        existing["state"] = "replayed"
+        existing["updated_at"] = _utc_now_iso()
+        with _HUMANITY_METRICS_LOCK:
+            HUMANITY_METRICS["replayed"] += 1
+        persist_humanity_logs()
+        return {"status": "success", "data": existing, "note": "Mensaje ya procesado, marcado como replayed."}
+
+    tx_hashes = {}
+    for chain in update.target_chains:
+        tx_hashes[chain] = "0x" + hashlib.sha256(f"{chain}|{message_id}".encode()).hexdigest()
+
+    now_iso = _utc_now_iso()
+    record = {
+        "operation_id": update.operation_id,
+        "message_id": message_id,
+        "criticality_profile": update.criticality_profile,
+        "state": "queued",
+        "target_chains": update.target_chains,
+        "tx_hashes": tx_hashes,
+        "created_at": now_iso,
+        "updated_at": now_iso
+    }
+    with _HUMANITY_STATE_LOCK:
+        HUMANITY_OPERATION_LOGS.append(record)
+    with _HUMANITY_METRICS_LOCK:
+        HUMANITY_METRICS["created"] += 1
+    logger.info("Humanity operation created", extra={"operation_id": update.operation_id, "message_id": message_id})
+    persist_humanity_logs()
+
+    await manager.broadcast(json.dumps({"type": "HUMANITY_OPERATION_UPDATED", **record}))
+    return {"status": "success", "data": record}
+
+
+@app.get("/v1/humanity/operations", tags=["HumanityChain"])
+async def humanity_operations(request: Request = None, api_key: str = Depends(verify_api_key)):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    with _HUMANITY_STATE_LOCK:
+        data = [dict(x) for x in HUMANITY_OPERATION_LOGS]
+    return {"status": "success", "count": len(data), "data": data}
+
+
+
+
+
+
+@app.get("/v1/humanity/operations/paginated", tags=["HumanityChain"])
+async def humanity_operations_paginated(offset: int = 0, limit: int = 50, request: Request = None, api_key: str = Depends(verify_api_key)):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="offset debe ser >= 0")
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=400, detail="limit debe estar entre 1 y 200")
+
+    with _HUMANITY_STATE_LOCK:
+        total = len(HUMANITY_OPERATION_LOGS)
+        data = [dict(x) for x in HUMANITY_OPERATION_LOGS[offset: offset + limit]]
+    return {"status": "success", "offset": offset, "limit": limit, "total": total, "data": data}
+
+
+
+@app.get("/v1/humanity/operations/filter", tags=["HumanityChain"])
+async def humanity_operations_filter(
+    state: str | None = None,
+    criticality_profile: str | None = None,
+    limit: int = 100,
+    request: Request = None,
+    api_key: str = Depends(verify_api_key),
+):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit debe estar entre 1 y 500")
+
+    with _HUMANITY_STATE_LOCK:
+        data = [dict(x) for x in HUMANITY_OPERATION_LOGS]
+
+    if state is not None:
+        if state not in VALID_HUMANITY_STATES:
+            raise HTTPException(status_code=400, detail=f"state inválido. Use: {', '.join(sorted(VALID_HUMANITY_STATES))}")
+        data = [x for x in data if x.get("state") == state]
+
+    if criticality_profile is not None:
+        if criticality_profile not in {"medical", "food", "emergency", "standard"}:
+            raise HTTPException(status_code=400, detail="criticality_profile inválido")
+        data = [x for x in data if x.get("criticality_profile") == criticality_profile]
+
+    return {"status": "success", "count": len(data[:limit]), "total": len(data), "data": data[:limit]}
+
+@app.get("/v1/humanity/metrics", tags=["HumanityChain"])
+async def humanity_metrics(request: Request = None, api_key: str = Depends(verify_api_key)):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    with _HUMANITY_METRICS_LOCK:
+        metrics = dict(HUMANITY_METRICS)
+    return {"status": "ok", "metrics": metrics}
+
+@app.get("/v1/humanity/health", tags=["HumanityChain"])
+async def humanity_health(request: Request = None, api_key: str = Depends(verify_api_key)):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    return {
+        "status": "ok",
+        "operations_count": len(HUMANITY_OPERATION_LOGS),
+        "allowed_target_chains": sorted(ALLOWED_TARGET_CHAINS),
+        "max_payload_bytes": MAX_PAYLOAD_BYTES,
+        "max_target_chains": MAX_TARGET_CHAINS
+    }
+
+@app.post("/v1/humanity/operation/state", tags=["HumanityChain"])
+async def humanity_operation_state(update: HumanityOperationStateUpdate, request: Request = None, api_key: str = Depends(verify_api_key)):
+    _rate_limit_or_raise(api_key)
+    _ip_rate_limit_or_raise(_extract_client_ip(request))
+    if update.state not in VALID_HUMANITY_STATES:
+        raise HTTPException(status_code=400, detail=f"state inválido. Use: {', '.join(sorted(VALID_HUMANITY_STATES))}")
+
+    with _HUMANITY_STATE_LOCK:
+        existing = next((x for x in HUMANITY_OPERATION_LOGS if x["message_id"] == update.message_id), None)
+    if not existing:
+        raise HTTPException(status_code=404, detail="message_id no encontrado")
+
+    current_state = existing["state"]
+    if update.state != current_state and update.state not in ALLOWED_STATE_TRANSITIONS.get(current_state, set()):
+        raise HTTPException(status_code=409, detail=f"Transición inválida de {current_state} a {update.state}")
+
+    existing["state"] = update.state
+    existing["updated_at"] = _utc_now_iso()
+    with _HUMANITY_METRICS_LOCK:
+        HUMANITY_METRICS["state_updates"] += 1
+    persist_humanity_logs()
+    await manager.broadcast(json.dumps({"type": "HUMANITY_OPERATION_STATE", **existing}))
+    return {"status": "success", "data": existing}
 
 # ---------------------------------------------------------
 # AGENTE DE IA: OPTIMIZACIÓN DE RUTAS
