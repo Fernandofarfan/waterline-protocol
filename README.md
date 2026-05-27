@@ -142,6 +142,7 @@ cp .env.example .env
 Ensure your `.env` points to the active backend:
 ```env
 VITE_API_URL=http://localhost:8000
+VITE_API_SECRET_KEY=dev_api_key_change_me
 ```
 
 Start the Vite development server:
