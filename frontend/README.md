@@ -28,6 +28,7 @@ cp .env.example .env
 Ensure your environment variable points to the active FastAPI backend service. The default local setup is:
 ```env
 VITE_API_URL=http://localhost:8000
+VITE_API_SECRET_KEY=dev_api_key_change_me
 ```
 
 ### 3. Dependency Installation
